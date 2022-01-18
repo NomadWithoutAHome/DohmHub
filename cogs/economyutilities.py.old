@@ -1,0 +1,135 @@
+from discord.ext.commands import bot
+import discord
+import helpers.bankFunctions as eco
+from discord.ext import commands
+from secrets import token_hex
+
+db = eco.load_database()
+
+
+class EconomyUtilities(commands.Cog, name='Economy Commands'):
+
+    def __init__(self, client):
+        self.client = client
+        self.database = db
+
+    @commands.command(name='create_account')
+    async def open_account(self, ctx):
+        usr = eco.Economy(str(ctx.author.id))
+        if not usr.check_if_exists(str(ctx.author.id)):
+            usr.open_account()
+            usr.generate_transaction(type='payment', amount=1000, user='Jenny')
+            usr.save_account()
+            bankteller = discord.Embed(
+                description='Thank you for choosing Dohm Industries Savings and Loans.\nmy name is Jenny, from here on out I will be your personal bank teller, and because your a new account i have deposited 1000dc into your account!\n\ni am sending you, your account holder card, remember to always keep it safe as DISL will NEVER ask for your account ID over text or email!"',
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+
+            em = discord.Embed(description='Account Holder Card', color=0xbf9626)
+            em.add_field(name='Name:', value=ctx.author.name, inline=True)
+            em.add_field(name='Account ID:', value='{acid}'.format(acid=token_hex(5)))
+            em.set_thumbnail(url=ctx.author.avatar_url)
+            em.set_footer(text='Dohm Industries Saving and Loans™️')
+            await ctx.author.send(embed=em)
+        else:
+            bankteller = discord.Embed(
+                description='Hey {usr}, i noticed you already have an account on file with us, which is GREAT, but unfortunately that means i am not able to created another account for you.'.format(
+                    usr=ctx.author.name),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+
+    @commands.command(name='get_balance')
+    async def get_balance(self, ctx):
+        try:
+
+            bankteller = discord.Embed(
+                description='Hey {usr}, how is your day going, the information you requested is down below, thank you for banking with Dohm Industries Savings and Loans, have a blessed day!'.format(
+                    usr=ctx.author.name),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            bankteller.add_field(name='Current Account Balance:', value='{balance} (Dc)'.format(
+                balance=self.database['Accounts'][str(ctx.author.id)]['wallet']))
+            await ctx.author.send(embed=bankteller)
+        except KeyError:
+            bankteller = discord.Embed(
+                description='Hey {usr}, i noticed you asked for an account balance yet you have not created an account with us, no problem i can help you with that just say &db create_account, i will be more then happy to help!'.format(
+                    usr=ctx.author.name),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+
+    @commands.command(name='transfer_funds')
+    async def transfer_funds(self, ctx, account: discord.User, money):
+        banker = eco.Economy(str(ctx.author.id))
+        if not str(account.id) in self.database['Accounts']:
+            bankteller = discord.Embed(
+                description='Hey {usr}, i wanted to inform you there was a banking error, i cannot transfer fund because {sendto} do not have an account on file with us.'.format(
+                    usr=ctx.author.name, sendto=account),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+
+        elif not str(ctx.author.id) in self.database['Accounts']:
+            bankteller = discord.Embed(
+                description='Hey {usr}, it seems you are trying to transfer funds but we do not have an account on file for you, not a problem to create an account use &db create_account.'.format(
+                    usr=ctx.author.name, sendto=account),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+        elif int(money) < 0:
+            bankteller = discord.Embed(
+                description='Hey {usr}, when transferring funds to another account you must use positive numbers only.'.format(
+                    usr=ctx.author.name, sendto=account),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+        elif int(money) > self.database['Accounts'][str(ctx.author.id)]['wallet']:
+            bankteller = discord.Embed(
+                description='Hey {usr}, i wanted to let you know that you wanted to transfer {trans} but you only have {current} in your account, so i can now process your transfer request right now'.format(
+                    trans=money, current=self.database['Accounts'][str(ctx.author.id)]['wallet'], usr=ctx.author),
+                color=0xbf9626)
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            await ctx.author.send(embed=bankteller)
+        else:
+            self.database['Accounts'][str(ctx.author.id)]['wallet'] -= int(money)
+            self.database['Accounts'][str(account.id)]['wallet'] += int(money)
+            print('done')
+            bankteller = discord.Embed(
+                description='Hey {usr}, i just wanted to let you know that someone initiated a transfer of funds into your account and that i finished proccessing it, the details can be found below, have a blessed day!'.format(
+                     usr=account),
+                color=0xbf9626)
+            bankteller.add_field(name='Payee:', value='{sender}'.format(sender=ctx.author))
+            bankteller.add_field(name='Amount:', value='{money} (Dc)'.format(money=money))
+            bankteller.add_field(name='Current Balance:', value='{money} (Dc)'.format(money=self.database['Accounts'][str(str(account.id))]['wallet']))
+            bankteller.set_author(name='Automated Bank Teller System')
+            bankteller.set_thumbnail(url='https://pays.host/uploads/bad83582-0b90-40ef-90f5-dd23b0ddbd42/T1cJqj6B.png')
+            banker.save_account()
+            await account.send(embed=bankteller)
+
+
+    @commands.command(name='list_transactions')
+    async def list_transactions(self, ctx):
+        await ctx.send(self.database['Accounts'][str(ctx.author.id)]['transactions']['amount'])
+
+    @commands.command(name='close_account')
+    async def close_account(self, ctx):
+        await ctx.send('WIP')
+
+    @commands.command(name='global_leaderboard')
+    async def global_leaderboard(self, ctx):
+        await ctx.send('WIP')
+
+
+
+def setup(client):
+    client.add_cog(EconomyUtilities(client))
